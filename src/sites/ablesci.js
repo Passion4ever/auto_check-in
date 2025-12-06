@@ -87,6 +87,7 @@ async function login(email, password) {
   // 获取登录后的 Cookie
   const newCookies = extractCookies(response)
   const allCookies = [initialCookies, newCookies].filter(Boolean).join('; ')
+  logger.info(`[科研通] 登录后 Cookie 数量: ${allCookies.split(';').length}`)
 
   // 检查登录结果
   const text = await response.text()
@@ -123,6 +124,8 @@ async function doSign(cookies) {
     }
   })
   const pageHtml = await pageResponse.text()
+  logger.info(`[科研通] 用户页面状态: ${pageResponse.status}, 长度: ${pageHtml.length}`)
+  logger.info(`[科研通] 页面内容预览: ${pageHtml.substring(0, 300).replace(/\s+/g, ' ')}`)
 
   // 提取 CSRF token - 尝试多种模式
   const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
