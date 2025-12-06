@@ -8,7 +8,6 @@ import logger from '../utils/logger.js'
 const BASE_URL = 'https://www.ablesci.com'
 const LOGIN_URL = `${BASE_URL}/site/login`
 const SIGN_URL = `${BASE_URL}/user/sign`
-const USER_URL = `${BASE_URL}/user/index`
 
 const DEFAULT_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -163,26 +162,31 @@ async function doSign(cookies) {
     throw new Error('签到响应格式异常')
   }
 
+  const msg = data.message || data.msg || ''
+
   // 解析签到结果
   if (data.code === 0 || data.success || data.status === 'success') {
-    const points = data.data?.signpoint || data.data?.points || data.points || 0
-    const days = data.data?.signcount || data.data?.days || data.days || 0
-    return {
-      success: true,
-      message: '签到成功',
-      points,
-      days
+    // 优先从 data 字段获取，其次从消息中提取
+    let points = data.data?.signpoint || data.data?.points || data.points || 0
+    let days = data.data?.signcount || data.data?.days || data.days || 0
+
+    // 从消息中提取（备选）
+    if (!points) {
+      const pointsMatch = msg.match(/(\d+)\s*积分/)
+      points = pointsMatch ? parseInt(pointsMatch[1]) : 0
     }
+    if (!days) {
+      const daysMatch = msg.match(/连续签到\s*(\d+)/)
+      days = daysMatch ? parseInt(daysMatch[1]) : 0
+    }
+
+    return { success: true, message: '签到成功', points, days }
   }
 
   // 检查是否已签到
-  const msg = data.message || data.msg || ''
   if (msg.includes('已签') || msg.includes('已经签到') || msg.includes('重复') ||
       msg.includes('今天已') || msg.includes('已于')) {
-    // 尝试提取签到时间
-    const timeMatch = msg.match(/\[(\d{2}:\d{2}:\d{2})\]/)
-    const timeInfo = timeMatch ? `（${timeMatch[1]}）` : ''
-    return { success: true, message: `今日已签到${timeInfo}` }
+    return { success: true, message: '今日已签到' }
   }
 
   throw new Error(msg || '签到失败')
@@ -193,7 +197,7 @@ async function doSign(cookies) {
  */
 async function getUserInfo(cookies) {
   try {
-    const response = await fetch(USER_URL, {
+    const response = await fetch(BASE_URL, {
       headers: {
         ...DEFAULT_HEADERS,
         'Cookie': cookies
@@ -202,16 +206,15 @@ async function getUserInfo(cookies) {
 
     const html = await response.text()
 
-    // 尝试从页面提取积分信息
+    // 尝试从页面提取积分和签到信息
     const pointsMatch = html.match(/积分[：:]\s*(\d+)/) || html.match(/(\d+)\s*积分/)
-    const daysMatch = html.match(/连续签到[：:]\s*(\d+)/) || html.match(/(\d+)\s*天/)
+    const daysMatch = html.match(/连续签到[：:]\s*(\d+)/) || html.match(/连续\s*(\d+)\s*天/) || html.match(/(\d+)\s*天/)
 
     return {
       points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
       days: daysMatch ? parseInt(daysMatch[1]) : 0
     }
   } catch (error) {
-    logger.warn('[科研通] 获取用户信息失败:', error.message)
     return { points: 0, days: 0 }
   }
 }
