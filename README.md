@@ -1,13 +1,20 @@
-# 统一自动签到框架
+# 自动签到工具
 
 基于 GitHub Actions 的多网站自动签到工具，支持邮件通知。
 
+## 功能特点
+
+- 每天自动签到，时间随机化（8:00-8:05）避免检测
+- 签到后显示积分、连续签到天数、金币等详情
+- 邮件通知签到结果
+- 自动保活，无需担心 GitHub 60 天限制
+
 ## 支持的网站
 
-| 网站 | 认证方式 | Cookie 过期问题 |
-|------|----------|-----------------|
-| 科研通 (ablesci.com) | 账号密码自动登录 | ✅ 已解决 |
-| HIFITI (hifiti.com) | Cookie | ⚠️ 过期时邮件提醒 |
+| 网站 | 认证方式 | 签到详情 |
+|------|----------|----------|
+| 科研通 (ablesci.com) | 账号密码 | 积分、连续签到天数 |
+| HIFITI (hifiti.com) | Cookie | 金币 |
 
 ## 快速开始
 
@@ -28,15 +35,11 @@
 #### HIFITI 配置
 | Secret | 说明 |
 |--------|------|
-| `HIFITI_ACCOUNTS` | HIFITI 账号 JSON，格式见下方 |
+| `HIFITI_ACCOUNTS` | HIFITI 账号 JSON（**必须单行**） |
 
-```json
-[
-  {
-    "name": "主账号",
-    "cookie": "bbs_token=xxx; bbs_sid=xxx"
-  }
-]
+**格式（单行）：**
+```
+[{"name":"我的账号","cookie":"bbs_sid=xxx; bbs_token=xxx"}]
 ```
 
 **获取 Cookie 方法**：
@@ -81,7 +84,7 @@
 
 ## 定时执行
 
-默认每天北京时间 **8:00** 自动执行签到。
+默认每天北京时间 **8:00-8:05** 之间随机执行签到（避免固定时间检测）。
 
 如需修改时间，编辑 `.github/workflows/checkin.yml` 中的 cron 表达式：
 
@@ -103,8 +106,10 @@ schedule:
 ```
 主题: ✅ 自动签到报告 - 2024-01-15
 
-✅ 科研通: 签到成功 (积分: 100, 连续签到: 7天)
-✅ HIFITI (主账号): 签到成功
+✅ 科研通: 签到成功
+   积分: 1128, 连续签到: 7天
+✅ HIFITI: 签到成功
+   金币: 21
 ```
 
 ### 需要处理
@@ -112,19 +117,25 @@ schedule:
 主题: ⚠️ 自动签到报告 - 需要注意
 
 ✅ 科研通: 签到成功
-⚠️ HIFITI (主账号): Cookie已过期
+   积分: 1128, 连续签到: 7天
+⚠️ HIFITI: Cookie已过期
 
 🔧 需要处理:
 请登录 hifiti.com 获取新 Cookie，更新 GitHub Secrets
 ```
 
+## 自动任务
+
+| 任务 | 频率 | 作用 |
+|------|------|------|
+| Auto Checkin | 每天 8:00-8:05 | 自动签到 |
+| Keepalive | 每月 1号、20号 | 保持仓库活跃（防止 60 天限制） |
+
 ## 注意事项
 
-1. **GitHub Actions 60天限制**：仓库 60 天无活动会自动禁用定时任务，需手动重新启用
+1. **HIFITI Cookie 有效期**：Cookie 会过期，过期时会收到邮件提醒，需手动更新
 
-2. **HIFITI Cookie 有效期**：Cookie 会过期，过期时会收到邮件提醒，需手动更新
-
-3. **科研通验证码**：正常情况下无需验证码，如果频繁登录失败可能触发验证码
+2. **科研通验证码**：正常情况下无需验证码，如果频繁登录失败可能触发验证码
 
 ## 本地开发
 
@@ -147,37 +158,22 @@ npm start
 ## 项目结构
 
 ```
-auto-sign-unified/
+auto_check-in/
 ├── .github/
 │   └── workflows/
-│       └── checkin.yml      # GitHub Actions 工作流
+│       ├── checkin.yml       # 签到工作流
+│       └── keepalive.yml     # 保活工作流
 ├── src/
-│   ├── index.js             # 主入口
-│   ├── mailer.js            # 邮件通知
+│   ├── index.js              # 主入口
+│   ├── mailer.js             # 邮件通知
 │   ├── sites/
-│   │   ├── ablesci.js       # 科研通签到
-│   │   └── hifiti.js        # HIFITI签到
+│   │   ├── ablesci.js        # 科研通签到
+│   │   └── hifiti.js         # HIFITI签到
 │   └── utils/
-│       └── logger.js        # 日志工具
+│       └── logger.js         # 日志工具
 ├── package.json
 └── README.md
 ```
-
-## 添加新网站
-
-1. 在 `src/sites/` 下创建新文件，如 `newsite.js`
-2. 实现 `checkIn()` 函数，返回格式：
-   ```javascript
-   {
-     siteName: '网站名',
-     success: true/false,
-     message: '签到结果',
-     details: '额外信息（可选）',
-     needAction: false,  // 是否需要用户处理
-     actionMessage: ''   // 处理提示
-   }
-   ```
-3. 在 `src/index.js` 中导入并调用
 
 ## License
 
