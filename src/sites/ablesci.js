@@ -126,13 +126,18 @@ async function doSign(cookies) {
   })
 
   const text = await response.text()
+  logger.info(`[科研通] 签到响应: ${text.substring(0, 500)}`)
+
   let data
   try {
     data = JSON.parse(text)
   } catch {
     // 尝试从 HTML 中提取信息
-    if (text.includes('签到成功') || text.includes('已签到')) {
+    if (text.includes('签到成功') || text.includes('已签到') || text.includes('success')) {
       return { success: true, message: '签到成功' }
+    }
+    if (text.includes('已经签到') || text.includes('重复签到')) {
+      return { success: true, message: '今日已签到' }
     }
     throw new Error('签到响应格式异常')
   }
