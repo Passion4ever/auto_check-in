@@ -124,11 +124,22 @@ async function doSign(cookies) {
   })
   const pageHtml = await pageResponse.text()
 
-  // 提取 CSRF token
+  // 提取 CSRF token - 尝试多种模式
   const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
+                    pageHtml.match(/content="([^"]+)"\s+name="csrf-token"/) ||
                     pageHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
-                    pageHtml.match(/"csrfToken":"([^"]+)"/)
+                    pageHtml.match(/"csrfToken":"([^"]+)"/) ||
+                    pageHtml.match(/_csrf['"]\s*:\s*['"]([^'"]+)['"]/) ||
+                    pageHtml.match(/<meta[^>]*csrf[^>]*content="([^"]+)"/)
   const csrf = csrfMatch ? csrfMatch[1] : ''
+
+  logger.info(`[科研通] CSRF Token: ${csrf ? csrf.substring(0, 20) + '...' : '未找到'}`)
+
+  // 如果没找到 CSRF，打印部分页面内容帮助调试
+  if (!csrf) {
+    const metaTags = pageHtml.match(/<meta[^>]+>/g) || []
+    logger.info(`[科研通] 页面 meta 标签: ${metaTags.slice(0, 5).join(' ')}`)
+  }
 
   // 构建签到请求
   const formData = new URLSearchParams()
@@ -142,7 +153,8 @@ async function doSign(cookies) {
       ...DEFAULT_HEADERS,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
-      'Referer': `${BASE_URL}/user/index`
+      'Referer': `${BASE_URL}/user/index`,
+      'X-CSRF-Token': csrf  // 也在 header 中发送
     },
     body: formData.toString()
   })
