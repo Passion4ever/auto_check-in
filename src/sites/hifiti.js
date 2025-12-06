@@ -67,7 +67,14 @@ async function getUserInfo(cookie) {
     // 提取金币: <span>金币:</span><b>21</b>
     const coinsMatch = html.match(/金币[：:]\s*<\/span>\s*<b[^>]*>(\d+)/) ||
                        html.match(/金币[：:]\s*<[^>]*>\s*<[^>]*>(\d+)/) ||
+                       html.match(/text-danger[^>]*>(\d+)<\/b>/) ||
                        html.match(/金币[：:]\s*(\d+)/)
+
+    // 调试
+    if (!coinsMatch) {
+      const lines = html.match(/[^\n]*金币[^\n]*/g) || []
+      logger.info(`[HIFITI] 金币相关: ${lines.slice(0, 3).join(' | ').substring(0, 200)}`)
+    }
 
     return {
       coins: coinsMatch ? parseInt(coinsMatch[1]) : 0
