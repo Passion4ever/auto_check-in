@@ -1,0 +1,45 @@
+name: Auto Checkin
+
+on:
+  # 定时执行：每天 UTC 0:00 (北京时间 8:00)
+  schedule:
+    - cron: "0 0 * * *"
+  # 支持手动触发
+  workflow_dispatch:
+
+jobs:
+  checkin:
+    name: 自动签到
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 执行签到
+        env:
+          # 科研通配置
+          ABLESCI_EMAIL: ${{ secrets.ABLESCI_EMAIL }}
+          ABLESCI_PASSWORD: ${{ secrets.ABLESCI_PASSWORD }}
+
+          # HIFITI 配置 (JSON 格式)
+          HIFITI_ACCOUNTS: ${{ secrets.HIFITI_ACCOUNTS }}
+
+          # 邮件通知配置 (QQ邮箱 SMTP)
+          SMTP_HOST: smtp.qq.com
+          SMTP_PORT: "465"
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+
+          # 通知模式: always(每次) / on_failure(仅失败时)
+          NOTIFY_MODE: ${{ vars.NOTIFY_MODE }}
+        run: node src/index.js

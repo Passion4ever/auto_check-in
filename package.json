@@ -1,0 +1,25 @@
+{
+  "name": "auto-sign-unified",
+  "version": "1.0.0",
+  "description": "统一自动签到框架 - 支持科研通、HIFINI等多网站签到，邮件通知",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "auto-checkin",
+    "签到",
+    "科研通",
+    "hifini"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
