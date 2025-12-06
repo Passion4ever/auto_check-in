@@ -197,29 +197,28 @@ async function doSign(cookies) {
  */
 async function getUserInfo(cookies) {
   try {
-    // 访问积分页面获取详细信息
-    const response = await fetch(`${BASE_URL}/my/point`, {
+    // 从首页获取连续签到天数和积分（首页有 "已连续签到 X 天" 和 "当前拥有 X 积分"）
+    const homeResponse = await fetch(BASE_URL, {
       headers: {
         ...DEFAULT_HEADERS,
         'Cookie': cookies,
         'Accept': 'text/html,application/xhtml+xml'
       }
     })
+    const homeHtml = await homeResponse.text()
 
-    const html = await response.text()
+    // 提取连续签到天数
+    const daysMatch = homeHtml.match(/已连续签到\s*(\d+)\s*天/) ||
+                      homeHtml.match(/连续签到\s*(\d+)/)
 
-    // 尝试从页面提取积分和签到信息
-    // 格式: "当前拥有 1128 积分" 和 "已连续签到 1 天"
-    const pointsMatch = html.match(/当前拥有\s*(\d+)\s*积分/) ||
-                        html.match(/总积分为[：:\s]*[^\d]*(\d+)/) ||
-                        html.match(/(\d+)\s*积分/)
-    const daysMatch = html.match(/已连续签到\s*(\d+)\s*天/) ||
-                      html.match(/连续签到\s*(\d+)/)
+    // 提取积分
+    const pointsMatch = homeHtml.match(/当前拥有\s*(\d+)\s*积分/) ||
+                        homeHtml.match(/拥有\s*(\d+)\s*积分/)
 
-    // 调试：如果天数没匹配到，打印相关内容
-    if (!daysMatch) {
-      const signLines = html.match(/[^\n]*连续[^\n]*/g) || []
-      logger.info(`[科研通] 连续签到相关: ${signLines.slice(0, 3).join(' | ').substring(0, 200)}`)
+    // 调试
+    if (!daysMatch || !pointsMatch) {
+      const lines = homeHtml.match(/[^\n]*(?:连续|拥有|积分)[^\n]*/g) || []
+      logger.info(`[科研通] 首页相关: ${lines.slice(0, 5).join(' | ').substring(0, 300)}`)
     }
 
     return {
