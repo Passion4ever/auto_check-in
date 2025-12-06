@@ -64,9 +64,10 @@ async function getUserInfo(cookie) {
     })
     const html = await response.text()
 
-    // 提取金币: 金币：21 或 金币: 21
-    const coinsMatch = html.match(/金币[：:]\s*(\d+)/) ||
-                       html.match(/金币<[^>]*>(\d+)/)
+    // 提取金币: <span>金币:</span><b>21</b>
+    const coinsMatch = html.match(/金币[：:]\s*<\/span>\s*<b[^>]*>(\d+)/) ||
+                       html.match(/金币[：:]\s*<[^>]*>\s*<[^>]*>(\d+)/) ||
+                       html.match(/金币[：:]\s*(\d+)/)
 
     return {
       coins: coinsMatch ? parseInt(coinsMatch[1]) : 0
