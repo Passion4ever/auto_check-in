@@ -216,6 +216,12 @@ async function getUserInfo(cookies) {
     const daysMatch = html.match(/已连续签到\s*(\d+)\s*天/) ||
                       html.match(/连续签到\s*(\d+)/)
 
+    // 调试：如果天数没匹配到，打印相关内容
+    if (!daysMatch) {
+      const signLines = html.match(/[^\n]*连续[^\n]*/g) || []
+      logger.info(`[科研通] 连续签到相关: ${signLines.slice(0, 3).join(' | ').substring(0, 200)}`)
+    }
+
     return {
       points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
       days: daysMatch ? parseInt(daysMatch[1]) : 0
