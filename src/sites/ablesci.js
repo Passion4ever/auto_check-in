@@ -87,7 +87,6 @@ async function login(email, password) {
   // 获取登录后的 Cookie
   const newCookies = extractCookies(response)
   const allCookies = [initialCookies, newCookies].filter(Boolean).join('; ')
-  logger.info(`[科研通] 登录后 Cookie 数量: ${allCookies.split(';').length}`)
 
   // 检查登录结果
   const text = await response.text()
@@ -124,24 +123,12 @@ async function doSign(cookies) {
     }
   })
   const pageHtml = await pageResponse.text()
-  logger.info(`[科研通] 首页状态: ${pageResponse.status}, 长度: ${pageHtml.length}`)
 
-  // 提取 CSRF token - 尝试多种模式
+  // 提取 CSRF token
   const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
                     pageHtml.match(/content="([^"]+)"\s+name="csrf-token"/) ||
-                    pageHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
-                    pageHtml.match(/"csrfToken":"([^"]+)"/) ||
-                    pageHtml.match(/_csrf['"]\s*:\s*['"]([^'"]+)['"]/) ||
-                    pageHtml.match(/<meta[^>]*csrf[^>]*content="([^"]+)"/)
+                    pageHtml.match(/"csrfToken":"([^"]+)"/)
   const csrf = csrfMatch ? csrfMatch[1] : ''
-
-  logger.info(`[科研通] CSRF Token: ${csrf ? csrf.substring(0, 20) + '...' : '未找到'}`)
-
-  // 如果没找到 CSRF，打印部分页面内容帮助调试
-  if (!csrf) {
-    const metaTags = pageHtml.match(/<meta[^>]+>/g) || []
-    logger.info(`[科研通] 页面 meta 标签: ${metaTags.slice(0, 5).join(' ')}`)
-  }
 
   // 构建签到请求
   const formData = new URLSearchParams()
@@ -162,8 +149,6 @@ async function doSign(cookies) {
   })
 
   const text = await response.text()
-  logger.info(`[科研通] 签到响应: ${text.substring(0, 500)}`)
-
   let data
   try {
     data = JSON.parse(text)
