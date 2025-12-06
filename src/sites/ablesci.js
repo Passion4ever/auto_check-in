@@ -197,27 +197,31 @@ async function doSign(cookies) {
  */
 async function getUserInfo(cookies) {
   try {
-    const response = await fetch(BASE_URL, {
+    // 访问积分页面获取详细信息
+    const response = await fetch(`${BASE_URL}/my/point`, {
       headers: {
         ...DEFAULT_HEADERS,
-        'Cookie': cookies
+        'Cookie': cookies,
+        'Accept': 'text/html,application/xhtml+xml'
       }
     })
 
     const html = await response.text()
 
     // 尝试从页面提取积分和签到信息
-    const pointsMatch = html.match(/积分[：:]\s*(\d+)/) || html.match(/(\d+)\s*积分/)
-    const daysMatch = html.match(/连续签到[：:]\s*(\d+)/) || html.match(/连续\s*(\d+)\s*天/) || html.match(/(\d+)\s*天/)
+    const pointsMatch = html.match(/当前积分[：:\s]*(\d+)/) ||
+                        html.match(/总积分[：:\s]*(\d+)/) ||
+                        html.match(/积分[：:\s]*<[^>]*>(\d+)/) ||
+                        html.match(/(\d+)\s*<\/?\w+>\s*积分/)
+    const daysMatch = html.match(/连续签到[：:\s]*(\d+)/) ||
+                      html.match(/已连续签到\s*(\d+)/) ||
+                      html.match(/连续\s*(\d+)\s*天/)
 
-    // 调试：打印匹配结果
-    logger.info(`[科研通] 用户信息: 积分=${pointsMatch ? pointsMatch[1] : '未找到'}, 天数=${daysMatch ? daysMatch[1] : '未找到'}`)
-
-    // 如果没匹配到，打印部分页面内容帮助调试
-    if (!pointsMatch && !daysMatch) {
-      // 查找包含"积分"或"签到"的行
-      const relevantLines = html.match(/[^\n]*(?:积分|签到)[^\n]*/g) || []
-      logger.info(`[科研通] 相关内容: ${relevantLines.slice(0, 3).join(' | ').substring(0, 200)}`)
+    // 调试日志
+    logger.info(`[科研通] 积分页面状态: ${response.status}, 长度: ${html.length}`)
+    if (!pointsMatch || !daysMatch) {
+      const relevantLines = html.match(/[^\n]*(?:积分|签到|连续)[^\n]*/g) || []
+      logger.info(`[科研通] 页面相关内容: ${relevantLines.slice(0, 5).join(' | ').substring(0, 300)}`)
     }
 
     return {
