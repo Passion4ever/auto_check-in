@@ -210,6 +210,16 @@ async function getUserInfo(cookies) {
     const pointsMatch = html.match(/积分[：:]\s*(\d+)/) || html.match(/(\d+)\s*积分/)
     const daysMatch = html.match(/连续签到[：:]\s*(\d+)/) || html.match(/连续\s*(\d+)\s*天/) || html.match(/(\d+)\s*天/)
 
+    // 调试：打印匹配结果
+    logger.info(`[科研通] 用户信息: 积分=${pointsMatch ? pointsMatch[1] : '未找到'}, 天数=${daysMatch ? daysMatch[1] : '未找到'}`)
+
+    // 如果没匹配到，打印部分页面内容帮助调试
+    if (!pointsMatch && !daysMatch) {
+      // 查找包含"积分"或"签到"的行
+      const relevantLines = html.match(/[^\n]*(?:积分|签到)[^\n]*/g) || []
+      logger.info(`[科研通] 相关内容: ${relevantLines.slice(0, 3).join(' | ').substring(0, 200)}`)
+    }
+
     return {
       points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
       days: daysMatch ? parseInt(daysMatch[1]) : 0
