@@ -165,8 +165,8 @@ async function doSign(cookies) {
 
   // 解析签到结果
   if (data.code === 0 || data.success || data.status === 'success') {
-    const points = data.data?.points || data.points || 0
-    const days = data.data?.days || data.days || 0
+    const points = data.data?.signpoint || data.data?.points || data.points || 0
+    const days = data.data?.signcount || data.data?.days || data.days || 0
     return {
       success: true,
       message: '签到成功',
@@ -177,8 +177,12 @@ async function doSign(cookies) {
 
   // 检查是否已签到
   const msg = data.message || data.msg || ''
-  if (msg.includes('已签') || msg.includes('已经签到') || msg.includes('重复')) {
-    return { success: true, message: '今日已签到' }
+  if (msg.includes('已签') || msg.includes('已经签到') || msg.includes('重复') ||
+      msg.includes('今天已') || msg.includes('已于')) {
+    // 尝试提取签到时间
+    const timeMatch = msg.match(/\[(\d{2}:\d{2}:\d{2})\]/)
+    const timeInfo = timeMatch ? `（${timeMatch[1]}）` : ''
+    return { success: true, message: `今日已签到${timeInfo}` }
   }
 
   throw new Error(msg || '签到失败')
