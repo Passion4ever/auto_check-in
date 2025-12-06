@@ -116,16 +116,15 @@ async function login(email, password) {
 async function doSign(cookies) {
   logger.info('[科研通] 执行签到...')
 
-  // 先访问用户页面获取新的 CSRF token
-  const pageResponse = await fetch(`${BASE_URL}/user/index`, {
+  // 访问首页获取 CSRF token
+  const pageResponse = await fetch(BASE_URL, {
     headers: {
       ...DEFAULT_HEADERS,
       'Cookie': cookies
     }
   })
   const pageHtml = await pageResponse.text()
-  logger.info(`[科研通] 用户页面状态: ${pageResponse.status}, 长度: ${pageHtml.length}`)
-  logger.info(`[科研通] 页面内容预览: ${pageHtml.substring(0, 300).replace(/\s+/g, ' ')}`)
+  logger.info(`[科研通] 首页状态: ${pageResponse.status}, 长度: ${pageHtml.length}`)
 
   // 提取 CSRF token - 尝试多种模式
   const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
