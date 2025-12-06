@@ -115,6 +115,27 @@ async function login(email, password) {
 async function doSign(cookies) {
   logger.info('[科研通] 执行签到...')
 
+  // 先访问用户页面获取新的 CSRF token
+  const pageResponse = await fetch(`${BASE_URL}/user/index`, {
+    headers: {
+      ...DEFAULT_HEADERS,
+      'Cookie': cookies
+    }
+  })
+  const pageHtml = await pageResponse.text()
+
+  // 提取 CSRF token
+  const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
+                    pageHtml.match(/name="_csrf"\s+value="([^"]+)"/) ||
+                    pageHtml.match(/"csrfToken":"([^"]+)"/)
+  const csrf = csrfMatch ? csrfMatch[1] : ''
+
+  // 构建签到请求
+  const formData = new URLSearchParams()
+  if (csrf) {
+    formData.append('_csrf', csrf)
+  }
+
   const response = await fetch(SIGN_URL, {
     method: 'POST',
     headers: {
@@ -122,7 +143,8 @@ async function doSign(cookies) {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
       'Referer': `${BASE_URL}/user/index`
-    }
+    },
+    body: formData.toString()
   })
 
   const text = await response.text()
