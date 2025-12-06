@@ -207,19 +207,13 @@ async function getUserInfo(cookies) {
     })
     const homeHtml = await homeResponse.text()
 
-    // 提取连续签到天数
-    const daysMatch = homeHtml.match(/已连续签到\s*(\d+)\s*天/) ||
-                      homeHtml.match(/连续签到\s*(\d+)/)
+    // 提取积分: 当前拥有<cite id="user-point-now">1128</cite>积分
+    const pointsMatch = homeHtml.match(/id="user-point-now"[^>]*>(\d+)</) ||
+                        homeHtml.match(/当前拥有[^<]*<[^>]*>(\d+)</)
 
-    // 提取积分
-    const pointsMatch = homeHtml.match(/当前拥有\s*(\d+)\s*积分/) ||
-                        homeHtml.match(/拥有\s*(\d+)\s*积分/)
-
-    // 调试
-    if (!daysMatch || !pointsMatch) {
-      const lines = homeHtml.match(/[^\n]*(?:连续|拥有|积分)[^\n]*/g) || []
-      logger.info(`[科研通] 首页相关: ${lines.slice(0, 5).join(' | ').substring(0, 300)}`)
-    }
+    // 提取连续签到天数: 已连续签到<cite id="sign-count">1</cite>天
+    const daysMatch = homeHtml.match(/id="sign-count"[^>]*>(\d+)</) ||
+                      homeHtml.match(/已连续签到[^<]*<[^>]*>(\d+)</)
 
     return {
       points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
