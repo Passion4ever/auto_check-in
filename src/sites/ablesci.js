@@ -209,20 +209,12 @@ async function getUserInfo(cookies) {
     const html = await response.text()
 
     // 尝试从页面提取积分和签到信息
-    const pointsMatch = html.match(/当前积分[：:\s]*(\d+)/) ||
-                        html.match(/总积分[：:\s]*(\d+)/) ||
-                        html.match(/积分[：:\s]*<[^>]*>(\d+)/) ||
-                        html.match(/(\d+)\s*<\/?\w+>\s*积分/)
-    const daysMatch = html.match(/连续签到[：:\s]*(\d+)/) ||
-                      html.match(/已连续签到\s*(\d+)/) ||
-                      html.match(/连续\s*(\d+)\s*天/)
-
-    // 调试日志
-    logger.info(`[科研通] 积分页面状态: ${response.status}, 长度: ${html.length}`)
-    if (!pointsMatch || !daysMatch) {
-      const relevantLines = html.match(/[^\n]*(?:积分|签到|连续)[^\n]*/g) || []
-      logger.info(`[科研通] 页面相关内容: ${relevantLines.slice(0, 5).join(' | ').substring(0, 300)}`)
-    }
+    // 格式: "当前拥有 1128 积分" 和 "已连续签到 1 天"
+    const pointsMatch = html.match(/当前拥有\s*(\d+)\s*积分/) ||
+                        html.match(/总积分为[：:\s]*[^\d]*(\d+)/) ||
+                        html.match(/(\d+)\s*积分/)
+    const daysMatch = html.match(/已连续签到\s*(\d+)\s*天/) ||
+                      html.match(/连续签到\s*(\d+)/)
 
     return {
       points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
