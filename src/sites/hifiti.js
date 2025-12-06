@@ -86,14 +86,14 @@ async function doCheckIn(cookie) {
 async function checkInSingleAccount(account) {
   const { name, cookie } = account
 
-  logger.info(`[HIFITI] 开始处理账号: ${name}`)
+  logger.info(`[HIFITI] 开始签到...`)
 
   // 先验证 Cookie
   const validation = await validateCookie(cookie)
   if (!validation.valid) {
-    logger.warn(`[HIFITI] ${name}: ${validation.reason}`)
+    logger.warn(`[HIFITI] ${validation.reason}`)
     return {
-      siteName: `HIFITI (${name})`,
+      siteName: 'HIFITI',
       success: false,
       message: validation.reason,
       needAction: true,
@@ -104,16 +104,16 @@ async function checkInSingleAccount(account) {
   // 执行签到
   try {
     const result = await doCheckIn(cookie)
-    logger.info(`[HIFITI] ${name}: ${result.message}`)
+    logger.info(`[HIFITI] ${result.message}`)
     return {
-      siteName: `HIFITI (${name})`,
+      siteName: 'HIFITI',
       success: true,
       message: result.message
     }
   } catch (error) {
-    logger.error(`[HIFITI] ${name}: ${error.message}`)
+    logger.error(`[HIFITI] ${error.message}`)
     return {
-      siteName: `HIFITI (${name})`,
+      siteName: 'HIFITI',
       success: false,
       message: error.message
     }
