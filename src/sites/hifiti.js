@@ -52,6 +52,31 @@ async function validateCookie(cookie) {
 }
 
 /**
+ * 获取用户信息（金币等）
+ */
+async function getUserInfo(cookie) {
+  try {
+    const response = await fetch(`${BASE_URL}/my.htm`, {
+      headers: {
+        ...DEFAULT_HEADERS,
+        Cookie: cookie
+      }
+    })
+    const html = await response.text()
+
+    // 提取金币: 金币：21 或 金币: 21
+    const coinsMatch = html.match(/金币[：:]\s*(\d+)/) ||
+                       html.match(/金币<[^>]*>(\d+)/)
+
+    return {
+      coins: coinsMatch ? parseInt(coinsMatch[1]) : 0
+    }
+  } catch (error) {
+    return { coins: 0 }
+  }
+}
+
+/**
  * 执行签到
  */
 async function doCheckIn(cookie) {
@@ -105,10 +130,16 @@ async function checkInSingleAccount(account) {
   try {
     const result = await doCheckIn(cookie)
     logger.info(`[HIFITI] ${result.message}`)
+
+    // 获取用户信息
+    const userInfo = await getUserInfo(cookie)
+    const details = userInfo.coins ? `金币: ${userInfo.coins}` : null
+
     return {
       siteName: 'HIFITI',
       success: true,
-      message: result.message
+      message: result.message,
+      details
     }
   } catch (error) {
     logger.error(`[HIFITI] ${error.message}`)
