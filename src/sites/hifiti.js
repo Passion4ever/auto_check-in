@@ -4,7 +4,9 @@
  * Cookie 过期时会邮件提醒用户更新
  */
 
+import * as cheerio from 'cheerio'
 import logger from '../utils/logger.js'
+import { fetchWithTimeout } from '../utils/http.js'
 
 const BASE_URL = 'https://www.hifiti.com'
 const SIGN_URL = `${BASE_URL}/sg_sign.htm`
@@ -22,7 +24,7 @@ const DEFAULT_HEADERS = {
  */
 async function validateCookie(cookie) {
   try {
-    const response = await fetch(CHECK_URL, {
+    const response = await fetchWithTimeout(CHECK_URL, {
       method: 'GET',
       headers: {
         ...DEFAULT_HEADERS,
@@ -47,8 +49,50 @@ async function validateCookie(cookie) {
 
     return { valid: true }
   } catch (error) {
-    return { valid: false, reason: `验证失败: ${error.message}` }
+    const isTimeout = error.message.includes('超时')
+    return {
+      valid: false,
+      reason: isTimeout ? '验证超时，请检查网络' : `验证失败: ${error.message}`
+    }
   }
+}
+
+/**
+ * 使用 cheerio 从 HTML 中提取用户信息
+ */
+function extractUserInfo(html) {
+  const $ = cheerio.load(html)
+
+  // 提取金币: <span>金币:</span><b>21</b>
+  // 或者: <span>金币:</span><b class="text-danger">21</b>
+  let coins = 0
+
+  // 方法1: 查找包含"金币"文本的 span 后面的 b 标签
+  $('span').each((_, el) => {
+    const text = $(el).text()
+    if (text.includes('金币')) {
+      const nextB = $(el).next('b')
+      if (nextB.length) {
+        coins = parseInt(nextB.text()) || 0
+      } else {
+        // 也可能是 span 内部有 b
+        const innerB = $(el).find('b')
+        if (innerB.length) {
+          coins = parseInt(innerB.text()) || 0
+        }
+      }
+    }
+  })
+
+  // 方法2: 如果上面没找到，尝试查找 text-danger 类的 b 标签
+  if (!coins) {
+    const dangerB = $('b.text-danger')
+    if (dangerB.length) {
+      coins = parseInt(dangerB.first().text()) || 0
+    }
+  }
+
+  return { coins }
 }
 
 /**
@@ -56,30 +100,16 @@ async function validateCookie(cookie) {
  */
 async function getUserInfo(cookie) {
   try {
-    const response = await fetch(`${BASE_URL}/my.htm`, {
+    const response = await fetchWithTimeout(`${BASE_URL}/my.htm`, {
       headers: {
         ...DEFAULT_HEADERS,
         Cookie: cookie
       }
     })
     const html = await response.text()
-
-    // 提取金币: <span>金币:</span><b>21</b>
-    const coinsMatch = html.match(/金币[：:]\s*<\/span>\s*<b[^>]*>(\d+)/) ||
-                       html.match(/金币[：:]\s*<[^>]*>\s*<[^>]*>(\d+)/) ||
-                       html.match(/text-danger[^>]*>(\d+)<\/b>/) ||
-                       html.match(/金币[：:]\s*(\d+)/)
-
-    // 调试
-    if (!coinsMatch) {
-      const lines = html.match(/[^\n]*金币[^\n]*/g) || []
-      logger.info(`[HIFITI] 金币相关: ${lines.slice(0, 3).join(' | ').substring(0, 200)}`)
-    }
-
-    return {
-      coins: coinsMatch ? parseInt(coinsMatch[1]) : 0
-    }
+    return extractUserInfo(html)
   } catch (error) {
+    logger.debug(`[HIFITI] 获取用户信息失败: ${error.message}`)
     return { coins: 0 }
   }
 }
@@ -88,7 +118,7 @@ async function getUserInfo(cookie) {
  * 执行签到
  */
 async function doCheckIn(cookie) {
-  const response = await fetch(SIGN_URL, {
+  const response = await fetchWithTimeout(SIGN_URL, {
     method: 'POST',
     headers: {
       ...DEFAULT_HEADERS,
@@ -151,10 +181,13 @@ async function checkInSingleAccount(account) {
     }
   } catch (error) {
     logger.error(`[HIFITI] ${error.message}`)
+
+    const isTimeout = error.message.includes('超时')
     return {
       siteName: 'HIFITI',
       success: false,
-      message: error.message
+      message: error.message,
+      actionMessage: isTimeout ? '网络超时，请稍后重试' : null
     }
   }
 }

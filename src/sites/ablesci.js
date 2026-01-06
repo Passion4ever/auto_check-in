@@ -3,7 +3,9 @@
  * 使用账号密码自动登录，彻底解决 Cookie 过期问题
  */
 
+import * as cheerio from 'cheerio'
 import logger from '../utils/logger.js'
+import { fetchWithTimeout } from '../utils/http.js'
 
 const BASE_URL = 'https://www.ablesci.com'
 const LOGIN_URL = `${BASE_URL}/site/login`
@@ -33,25 +35,41 @@ function extractCookies(response) {
 }
 
 /**
+ * 使用 cheerio 从 HTML 中提取 CSRF Token
+ */
+function extractCsrfToken(html) {
+  const $ = cheerio.load(html)
+
+  // 尝试多种方式获取 CSRF token
+  // 1. meta 标签: <meta name="csrf-token" content="xxx">
+  let csrf = $('meta[name="csrf-token"]').attr('content')
+  if (csrf) return csrf
+
+  // 2. input 隐藏字段: <input name="_csrf" value="xxx">
+  csrf = $('input[name="_csrf"]').val()
+  if (csrf) return csrf
+
+  // 3. 从 script 中提取 (备用正则方式)
+  const scriptText = $('script').text()
+  const match = scriptText.match(/"csrfToken"\s*:\s*"([^"]+)"/)
+  if (match) return match[1]
+
+  return null
+}
+
+/**
  * 获取 CSRF Token
  */
 async function getCsrfToken() {
-  const response = await fetch(BASE_URL, {
+  const response = await fetchWithTimeout(BASE_URL, {
     headers: DEFAULT_HEADERS
   })
 
   const html = await response.text()
   const cookies = extractCookies(response)
+  const csrf = extractCsrfToken(html)
 
-  // 从 HTML 中提取 CSRF token (meta 标签或 input 隐藏字段)
-  const csrfMatch = html.match(/name="csrf-token"\s+content="([^"]+)"/) ||
-                    html.match(/name="_csrf"\s+value="([^"]+)"/) ||
-                    html.match(/"csrfParam":"_csrf","csrfToken":"([^"]+)"/)
-
-  return {
-    csrf: csrfMatch ? csrfMatch[1] : null,
-    cookies
-  }
+  return { csrf, cookies }
 }
 
 /**
@@ -71,7 +89,7 @@ async function login(email, password) {
     formData.append('_csrf', csrf)
   }
 
-  const response = await fetch(LOGIN_URL, {
+  const response = await fetchWithTimeout(LOGIN_URL, {
     method: 'POST',
     headers: {
       ...DEFAULT_HEADERS,
@@ -115,19 +133,14 @@ async function doSign(cookies) {
   logger.info('[科研通] 执行签到...')
 
   // 访问首页获取 CSRF token
-  const pageResponse = await fetch(BASE_URL, {
+  const pageResponse = await fetchWithTimeout(BASE_URL, {
     headers: {
       ...DEFAULT_HEADERS,
       'Cookie': cookies
     }
   })
   const pageHtml = await pageResponse.text()
-
-  // 提取 CSRF token
-  const csrfMatch = pageHtml.match(/name="csrf-token"\s+content="([^"]+)"/) ||
-                    pageHtml.match(/content="([^"]+)"\s+name="csrf-token"/) ||
-                    pageHtml.match(/"csrfToken":"([^"]+)"/)
-  const csrf = csrfMatch ? csrfMatch[1] : ''
+  const csrf = extractCsrfToken(pageHtml) || ''
 
   // 构建签到请求
   const formData = new URLSearchParams()
@@ -135,14 +148,14 @@ async function doSign(cookies) {
     formData.append('_csrf', csrf)
   }
 
-  const response = await fetch(SIGN_URL, {
+  const response = await fetchWithTimeout(SIGN_URL, {
     method: 'POST',
     headers: {
       ...DEFAULT_HEADERS,
       'Content-Type': 'application/x-www-form-urlencoded',
       'Cookie': cookies,
       'Referer': `${BASE_URL}/user/index`,
-      'X-CSRF-Token': csrf  // 也在 header 中发送
+      'X-CSRF-Token': csrf
     },
     body: formData.toString()
   })
@@ -193,12 +206,34 @@ async function doSign(cookies) {
 }
 
 /**
+ * 使用 cheerio 从 HTML 中提取用户信息
+ */
+function extractUserInfo(html) {
+  const $ = cheerio.load(html)
+
+  // 提取积分: 当前拥有<cite id="user-point-now">1128</cite>积分
+  let points = 0
+  const pointsEl = $('#user-point-now')
+  if (pointsEl.length) {
+    points = parseInt(pointsEl.text()) || 0
+  }
+
+  // 提取连续签到天数: 已连续签到<cite id="sign-count">1</cite>天
+  let days = 0
+  const daysEl = $('#sign-count')
+  if (daysEl.length) {
+    days = parseInt(daysEl.text()) || 0
+  }
+
+  return { points, days }
+}
+
+/**
  * 获取用户信息（积分、连续签到天数等）
  */
 async function getUserInfo(cookies) {
   try {
-    // 从首页获取连续签到天数和积分（首页有 "已连续签到 X 天" 和 "当前拥有 X 积分"）
-    const homeResponse = await fetch(BASE_URL, {
+    const homeResponse = await fetchWithTimeout(BASE_URL, {
       headers: {
         ...DEFAULT_HEADERS,
         'Cookie': cookies,
@@ -206,20 +241,9 @@ async function getUserInfo(cookies) {
       }
     })
     const homeHtml = await homeResponse.text()
-
-    // 提取积分: 当前拥有<cite id="user-point-now">1128</cite>积分
-    const pointsMatch = homeHtml.match(/id="user-point-now"[^>]*>(\d+)</) ||
-                        homeHtml.match(/当前拥有[^<]*<[^>]*>(\d+)</)
-
-    // 提取连续签到天数: 已连续签到<cite id="sign-count">1</cite>天
-    const daysMatch = homeHtml.match(/id="sign-count"[^>]*>(\d+)</) ||
-                      homeHtml.match(/已连续签到[^<]*<[^>]*>(\d+)</)
-
-    return {
-      points: pointsMatch ? parseInt(pointsMatch[1]) : 0,
-      days: daysMatch ? parseInt(daysMatch[1]) : 0
-    }
+    return extractUserInfo(homeHtml)
   } catch (error) {
+    logger.debug(`[科研通] 获取用户信息失败: ${error.message}`)
     return { points: 0, days: 0 }
   }
 }
@@ -276,12 +300,16 @@ export async function checkIn() {
                           error.message.includes('verify') ||
                           error.message.includes('captcha')
 
+    // 检查是否是超时问题
+    const isTimeoutError = error.message.includes('超时')
+
     return {
       siteName: '科研通',
       success: false,
       message: error.message,
       needAction: isVerifyError,
-      actionMessage: isVerifyError ? '触发验证码，请手动登录一次' : null
+      actionMessage: isVerifyError ? '触发验证码，请手动登录一次' :
+                     isTimeoutError ? '网络超时，请稍后重试' : null
     }
   }
 }
