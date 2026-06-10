@@ -36,9 +36,6 @@ jobs:
           ABLESCI_EMAIL: ${{ secrets.ABLESCI_EMAIL }}
           ABLESCI_PASSWORD: ${{ secrets.ABLESCI_PASSWORD }}
 
-          # HIFITI 配置 (JSON 格式)
-          HIFITI_ACCOUNTS: ${{ secrets.HIFITI_ACCOUNTS }}
-
           # 邮件通知配置 (QQ邮箱 SMTP)
           SMTP_HOST: smtp.qq.com
           SMTP_PORT: "465"

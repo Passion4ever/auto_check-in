@@ -5,7 +5,6 @@
 import logger from './utils/logger.js'
 import { sendEmail } from './mailer.js'
 import { checkIn as ableSciCheckIn } from './sites/ablesci.js'
-import { checkIn as hifitiCheckIn } from './sites/hifiti.js'
 
 /**
  * 主函数
@@ -30,20 +29,7 @@ async function main() {
     })
   }
 
-  // 2. HIFITI 签到（可能有多个账号）
-  try {
-    const hifitiResults = await hifitiCheckIn()
-    results.push(...hifitiResults)
-  } catch (error) {
-    logger.error('HIFITI签到异常:', error.message)
-    results.push({
-      siteName: 'HIFITI',
-      success: false,
-      message: `异常: ${error.message}`
-    })
-  }
-
-  // 3. 输出结果汇总
+  // 2. 输出结果汇总
   logger.info('========== 签到结果汇总 ==========')
   for (const result of results) {
     const icon = result.success ? '✅' : '❌'
@@ -53,7 +39,7 @@ async function main() {
     }
   }
 
-  // 4. 发送邮件通知
+  // 3. 发送邮件通知
   const notifyMode = process.env.NOTIFY_MODE || 'always'
   const hasFailure = results.some(r => !r.success)
   const hasWarning = results.some(r => r.needAction)

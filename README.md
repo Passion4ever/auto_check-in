@@ -1,11 +1,11 @@
 # 自动签到工具
 
-基于 GitHub Actions 的多网站自动签到工具，支持邮件通知。
+基于 GitHub Actions 的自动签到工具，支持邮件通知。
 
 ## 功能特点
 
 - 每天自动签到，时间随机化（8:00-8:05）避免检测
-- 签到后显示积分、连续签到天数、金币等详情
+- 签到后显示积分、连续签到天数等详情
 - 邮件通知签到结果
 - 自动保活，无需担心 GitHub 60 天限制
 
@@ -14,7 +14,6 @@
 | 网站 | 认证方式 | 签到详情 |
 |------|----------|----------|
 | 科研通 (ablesci.com) | 账号密码 | 积分、连续签到天数 |
-| HIFITI (hifiti.com) | Cookie | 金币 |
 
 ## 快速开始
 
@@ -31,25 +30,6 @@
 |--------|------|
 | `ABLESCI_EMAIL` | 科研通登录邮箱 |
 | `ABLESCI_PASSWORD` | 科研通登录密码 |
-
-#### HIFITI 配置
-| Secret | 说明 |
-|--------|------|
-| `HIFITI_ACCOUNTS` | HIFITI 账号 JSON（**必须单行**） |
-
-**格式（单行）：**
-```
-[{"name":"我的账号","cookie":"bbs_sid=xxx; bbs_token=xxx"}]
-```
-
-**获取 Cookie 方法**：
-1. 登录 hifiti.com
-2. 打开浏览器开发者工具 (F12)
-3. 切换到 Network 标签
-4. 刷新页面，点击任意请求
-5. 在 Headers 中找到 Cookie，复制 `bbs_token` 和 `bbs_sid` 的值
-
-**注意**：使用网站右上角的"退出"按钮会使 Cookie 失效！
 
 #### 邮件通知配置
 | Secret | 说明 |
@@ -102,26 +82,12 @@ schedule:
 
 ## 邮件通知示例
 
-### 全部成功
+### 签到成功
 ```
 主题: ✅ 自动签到报告 - 2024-01-15
 
 ✅ 科研通: 签到成功
    积分: 1128, 连续签到: 7天
-✅ HIFITI: 签到成功
-   金币: 21
-```
-
-### 需要处理
-```
-主题: ⚠️ 自动签到报告 - 需要注意
-
-✅ 科研通: 签到成功
-   积分: 1128, 连续签到: 7天
-⚠️ HIFITI: Cookie已过期
-
-🔧 需要处理:
-请登录 hifiti.com 获取新 Cookie，更新 GitHub Secrets
 ```
 
 ## 自动任务
@@ -133,9 +99,7 @@ schedule:
 
 ## 注意事项
 
-1. **HIFITI Cookie 有效期**：Cookie 会过期，过期时会收到邮件提醒，需手动更新
-
-2. **科研通验证码**：正常情况下无需验证码，如果频繁登录失败可能触发验证码
+1. **科研通验证码**：正常情况下无需验证码，如果频繁登录失败可能触发验证码
 
 ## 本地开发
 
@@ -146,7 +110,6 @@ npm install
 # 设置环境变量
 export ABLESCI_EMAIL="your_email"
 export ABLESCI_PASSWORD="your_password"
-export HIFITI_ACCOUNTS='[{"name":"test","cookie":"..."}]'
 export SMTP_USER="your_qq@qq.com"
 export SMTP_PASS="your_auth_code"
 export MAIL_TO="receive@example.com"
@@ -167,8 +130,7 @@ auto_check-in/
 │   ├── index.js              # 主入口
 │   ├── mailer.js             # 邮件通知
 │   ├── sites/
-│   │   ├── ablesci.js        # 科研通签到
-│   │   └── hifiti.js         # HIFITI签到
+│   │   └── ablesci.js        # 科研通签到
 │   └── utils/
 │       └── logger.js         # 日志工具
 ├── package.json
