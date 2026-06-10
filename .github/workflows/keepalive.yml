@@ -7,6 +7,10 @@ on:
   # 支持手动触发
   workflow_dispatch:
 
+# 允许 github-actions[bot] 推送保活提交
+permissions:
+  contents: write
+
 jobs:
   keepalive:
     name: 保持仓库活跃
